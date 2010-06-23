@@ -1,0 +1,203 @@
+#!/usr/bin/env ruby
+require "rubygems"
+require "readline"
+gem "xmpp4r"
+require "xmpp4r/client"
+require "xmpp4r/roster"
+include Jabber
+
+$requests = []
+
+class Sandbox
+  def binding
+    (Proc.new {}).binding
+  end
+end
+
+def ask(prompt, silent=nil)
+  system 'stty -echo' if silent
+  /.*`(.*)'/ =~ caller[0]
+  res = Readline.readline($1 ? "(#{$1}) #{prompt}: " : "#{prompt}: ", true)
+  system('stty echo') && puts('') if silent
+  res ? res.chomp : res
+end
+
+def notify(sender, msg)
+  puts "\n>#{sender} #{msg}"
+end
+
+def connect(user=nil, password=nil)
+  id = user || ask("user@domain/resource")
+  if id
+    pw = password || ask("password", true)
+    if pw
+      print ">connecting..."
+      $stdout.flush
+      jid = JID::new id
+      $client = Client::new jid
+      $client.connect
+      $client.auth pw
+      $client.add_message_callback do |m|
+	case m.type
+	  when :chat || :normal
+	    if m.body
+	      notify m.from, 'jabs:'
+	      puts m.body
+	    end
+	  when :error
+	    notify m.from, 'error encountered.'
+	end
+      end
+      roster = Roster::Helper.new $client
+      roster.add_subscription_request_callback do |item,pres|
+	$requests << [roster,pres]
+      end
+      roster.add_subscription_callback do |roster,pres|
+	notify pres.from, "is now jabbable" if pres.type == :subscribed
+      end
+      roster.add_presence_callback do |roster, old, new|
+	notify new.from, 'status: ' + (new.show ? new.show.to_s : 'available') + ': ' + (new.status ? new.status : '')
+      end
+      puts "done."
+    else
+      exit 1
+    end
+  else
+    exit 1
+  end
+end
+
+def handle_requests
+  while req = $requests.shift
+    roster, pres = req
+    notify pres.from, "wants to be able to jab you."
+    print ">the question is, do you want to be jabbed (y/n)? "
+    $stdout.flush
+    while !(['y','n'].index((ans = $stdin.gets) ? ans.chomp! : ans))
+      print ">y or n please "
+      $stdout.flush
+    end
+    if ans == 'y'
+      puts ">accepting..."
+      roster.accept_subscription pres.from
+    else
+      puts ">rejecting..."
+      roster.decline_subscription pres.from
+    end
+  end
+  true
+end
+
+def jab(user=nil, message=nil)
+  who = user || ask("whom")
+  if who
+    if message
+      m = Message::new who message
+      m.type = :chat
+      $client.send m
+    else
+      while msg = ask(who)
+	if msg.length > 0
+	  m = Message::new who, msg
+	  m.type = :chat
+	  $client.send m
+        end
+      end
+      puts ''
+    end
+  end
+end
+
+def tap(user=nil)
+  who = user || ask("whom")
+  if (who)
+    $client.send Presence.new.set_type(:subscribe).set_to(who)
+  end
+end
+
+def status(sts=nil, msg=nil)
+  s = sts || ask("away/chat/dnd/xa [available]")
+  if s
+    pres = Presence.new
+    if (s != '')
+      st = s.to_sym
+      case st
+        when :away
+	when :chat
+	when :dnd
+	when :xa
+	else raise "invalid status"
+      end
+      pres.show = st
+    else
+      pres.show = nil
+    end
+    pres.status = msg || ask("Message [none]")
+    $client.send pres
+  end
+end
+
+def q
+  exit
+end
+
+def about
+  puts ">jab version 0.1, by chip camden"
+  puts ">http://chipstips.com/?tag=rbjab"
+end
+
+def help
+  about
+  puts <<END
+commands:
+
+about						information about jab
+connect ["user@domain/resource"] ["password"]	connect to XMPP server
+help						print this list
+jab [user] [message]				send a message
+q						quit
+status [sts] [message]				set availability status
+tap [user]					request to speak to user
+
+Any optional parameters not supplied will be requested.  Additionally,
+you can use any Ruby statements, which will be executed within a
+sandboxed binding.  Thus, for example, to establish a user alias:
+
+chip = "sterlingcamden@jabber.org"
+
+which creates the variable chip in the sandboxed context.  Now you can:
+
+jab chip
+
+If the file ~/.jabrc exists, it will be evaluated prior to asking you
+for commands.
+
+END
+end
+
+#Jabber::debug = true
+
+about
+
+sandbox = Sandbox.new.binding
+
+rcfile = File.expand_path '~/.jabrc'
+if File.exists? rcfile
+  File.open rcfile do |rc|
+    begin
+      eval rc.readlines.join, sandbox
+    rescue
+      puts ">error evaluating .jabrc\n>#{$!}"
+    end
+  end
+end
+
+connect if !$client
+
+while handle_requests && (cmd = ask(''))
+  begin
+    eval cmd, sandbox
+  rescue
+    puts ">error evaluating command '#{cmd}'\n>#{$!}"
+  end
+end
