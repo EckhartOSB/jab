@@ -1,0 +1,14 @@
+# prompts use a light red
+color /^.*: \z/m , fg(203)
+
+# status change notifications are grey
+color /^>\S* is .*/ , fg(243)
+
+# send errors are red
+color /^>\S* ducked your jab.*\Z/m ,fg(red)
+
+# syntax or execution errors are white on red
+color /^> error .*\Z/m ,bg(red), fg(white)
+
+# individual jabbers:
+color /^>#{chip}\S* jabs:.*\z/m , fg(32)

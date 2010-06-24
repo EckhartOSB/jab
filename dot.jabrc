@@ -1,0 +1,39 @@
+# Read saved aliases
+source "~/.jab-aliases"
+
+# Here's how we save them
+def save_alias(al=nil, whom=nil, color=nil)
+  nick = al || ask("nickname")
+  if nick
+    who = whom || ask("username")
+    if who
+      cmd = "#{nick} = '#{who}'"
+      eval cmd, $sandbox
+      File.open File.expand_path("~/.jab-aliases"), "a" do |f|
+	f.puts cmd
+      end
+      clr = color || ask("color [none]")
+      if clr && (clr != '')
+        cmd = 'color /^>' + who + '\S* jabs:.*\z/m , fg(' + clr.to_s + ')'
+	eval cmd, $sandbox
+	File.open File.expand_path("~/.jab-colors"), "a" do |f|
+	  f.puts cmd
+	end
+      end
+    end
+  end
+end
+
+# Set colors, if we can
+if `tput Co`.chomp == '256'
+  source "~/.jab-colors"
+else
+  interject :info, nil, "(no colors)"
+end
+
+# Connect to my XMPP server
+connect "username@jabber.org", "password"
+
+# Set current status
+status :chat,"Hello Jabberspace!"
+

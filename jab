@@ -1,21 +1,9 @@
 #!/usr/bin/env ruby
 require "rubygems"
 require "readline"
-gem "xmpp4r"
 require "xmpp4r/client"
 require "xmpp4r/roster"
 include Jabber
-
-$requests = []
-$colors = []
-$op = nil
-$notify = {:errors => true, :info => true, :jabs => true, :status => true, :always => true}
-$accept = :ask
-begin
-  Readline.vi_editing_mode
-rescue NotImplementedError
-  interject :info, "vi editing mode not available"
-end
 
 class Sandbox
   def binding
@@ -236,7 +224,7 @@ def color(what,*how)
 end
 
 def about
-  say "jab version 0.1, by chip camden\n"
+  say "jab version 0.2, by chip camden\n"
   say "http://chipstips.com/?tag=rbjab\n"
 end
 
@@ -301,15 +289,33 @@ def q
   exit
 end
 
+def getcmd
+  ask('', false, '')
+rescue Interrupt => exc
+  interject :errors, nil, "interrupted"
+  ''
+end
+
 #Jabber::debug = true
 
+$requests = []
+$colors = []
+$op = nil
+$notify = {:errors => true, :info => true, :jabs => true, :status => true, :always => true}
+$accept = :ask
 $sandbox = Sandbox.new.binding
+
+begin
+  Readline.vi_editing_mode
+rescue NotImplementedError
+  interject :info, "vi editing mode not available"
+end
 
 source "~/.jabrc", true
 
 connect if !$client
 
-while handle_requests && (cmd = ask(''))
+while handle_requests && (cmd = getcmd)
   begin
     eval cmd, $sandbox
   rescue SystemExit => exc

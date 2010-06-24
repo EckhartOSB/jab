@@ -1,0 +1,49 @@
+jab -- CLI-based Jabber client of/by/for Ruby
+
+Author:	Chip Camden
+Date:	June, 2010
+Site:	http://chipstips.com/?tag=rbjab
+hg:	http://bitbucket.org/sterlingcamden/jab
+
+jab provides a minimal, text-only, serial (no cursing) XMPP client
+written in Ruby, that uses Ruby as its command language.  jab provides
+methods to handle the common set of chat tasks, but of course you can
+execute any Ruby code within its read-eval-print loop.
+
+jab binds the execution contect of all evaluated commands commands to a
+proc inside a class named Sandbox.  This means any variables you define
+will not conflict with variables internal to jab, and any classes or
+methods you define will be contained within the Sandbox class.
+
+To set up your environment each time you start jab, you can place
+commands in a file named ~/.jabrc -- if that file exists, it will be
+executed before jab asks you for input.  Typical commands placed in
+.jabrc include connecting to the XMPP server, defining aliases, selecting
+colors, and user-specific functions.  An example .jabrc file is included
+with this distribution as dot.jabrc, along with two files that it relies
+upon: .jab-aliases (dot.jab-aliases) and .jab-colors (dot.jab-colors).
+You can use this as patterns for creating your own customized jab
+session.
+
+For the list of provided commands, type 'help' at the prompt (:).
+
+jab supports command history and vi-style editing, using
+Readline.vi_editing_mode.  Whenever a prompt includes a list of possible
+responses, command completion is available by pressing Tab.
+
+jab does not provide conversation logging, but you can easily accomplish
+that by redirecting output through tee.  jab does not separate multiple,
+simultaneous coonversations, but it does provide visual cues to tell you
+not only who said something but to whom your next line of text will go if
+you don't switch jabs.
+
+Because XMPP operates asynchronously, you will often receive a message or
+notification while composing a message.  If that confuses you to the
+point of not being able to finish your thought, use Ctrl+U to erase your
+pending input, press Return to get a fresh prompt, and begin again.  An
+empty line is always ignored when entering commands or messages.  If you
+panic and press Ctrl+C, no worries -- the interrupt will be reported to
+you, and you'll get another prompt.
+
+When you're all done, you can press Ctrl+D (EOF) to exit jab, or use the
+'q' or 'exit' commands.
