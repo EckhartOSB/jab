@@ -34,8 +34,11 @@ class Jab
   def ask(prompt, silent=nil, call=nil)
     system 'stty -echo' if silent
     /.*`(.*)'/ =~ (call ? call : caller[0])
-    say $1 ? "(#{$1}) #{prompt}: " : "#{prompt}: "
-    res = Readline.readline('', true)
+    p = $1 ? "(#{$1}) #{prompt}: " : "#{prompt}: "
+    @colors.each do |cla|
+      p.gsub! *cla
+    end
+    res = Readline.readline(p, true)
     system('stty echo') && puts('') if silent
     res ? res.chomp : res
   end
@@ -231,12 +234,12 @@ class Jab
     if f
       f = File.expand_path(f)
       if (!ignore_fnf) || (File.exists? f)
-	File.open f do |fd|
-	  begin
+	begin
+	  File.open f do |fd|
 	    eval fd.readlines.join, @sandbox, file
-	  rescue Exception => exc
-	    interject :errors, nil, "error in #{file}\n>#{$!}"
 	  end
+	rescue Exception => exc
+	  interject :errors, nil, "error in #{file}\n>#{$!}"
 	end
       end
     end

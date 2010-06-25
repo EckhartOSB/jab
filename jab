@@ -1,14 +1,49 @@
 #!/usr/bin/env ruby
 require "readline"
+require "optparse"
 require "jab"		# put jab.rb somewhere in your Ruby load path
 			# ruby -e "puts $:"
 
-begin
-  Readline.vi_editing_mode
-rescue NotImplementedError
-  interject :info, "vi editing mode not available"
+session = Jab.new
+gotrc = false
+editing = :vi
+
+optparse = OptionParser.new do |opts|
+  opts.banner = 'usage: jab [-e] [-h] [-r RCFILE] [-v]'
+
+  opts.on('-e', '--emacs', 'Use emacs line editing (default is vi)') do
+    editing = :emacs
+  end
+
+  opts.on('-r', '--rcfile RCFILE', 'Use a different startup file') do |rcfile|
+    session.source rcfile
+    gotrc = true
+  end
+
+  opts.on('-v', '--version', 'Display version and exit') do
+    session.about
+    exit
+  end
 end
 
-session = Jab.new
-session.source "~/.jabrc", true
+begin
+  optparse.parse!
+rescue OptionParser::InvalidOption => e
+  puts e
+  puts optparse
+  exit 1
+end
+
+begin
+  case editing
+    when :vi
+      Readline.vi_editing_mode
+    when :emacs
+      Readline.emacs_editing_mode
+  end
+rescue NotImplementedError
+  interject :info, "#{editing.to_s} editing mode not available"
+end
+
+session.source "~/.jabrc", true if !gotrc
 session.interact

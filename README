@@ -20,7 +20,8 @@ Jab class.
 
 To set up your environment each time you start jab, you can place
 commands in a file named ~/.jabrc -- if that file exists, it will be
-executed before jab asks you for input.  Typical commands placed in
+executed before jab asks you for input.  You can also override the name 
+of this file with the -r command-line option.  Typical commands placed in
 .jabrc include connecting to the XMPP server, defining aliases, selecting
 colors, and user-specific functions.  An example .jabrc file is included
 with this distribution as dot.jabrc, along with two files that it relies
@@ -32,8 +33,8 @@ For the list of provided commands, type 'help' at the prompt (:).  Help
 pages its output by piping it to the executable named in the PAGER
 environment variable, or "less" is PAGER is not set.
 
-jab supports command history and vi-style editing, using
-Readline.vi_editing_mode.  Whenever a prompt includes a list of possible
+jab supports command history and either vi-style or emacs-style editing,
+using Readline.  Whenever a prompt includes a list of possible
 responses, command completion is available by pressing Tab.
 
 jab does not provide conversation logging, but you can easily accomplish
@@ -69,5 +70,12 @@ execute it specifying the full path.
 Edit default commands into ~/.jabrc, and you're ready to go!
 
 jab
+
+COMMAND LINE OPTIONS
+
+-e, --emacs		Use emacs line editing (default is vi)
+-h, --help		Display help and exit
+-r, --rcfile RCFILE	Use a different startup file (can use more than one)
+-v, --version		Display version and exit
 
 END
