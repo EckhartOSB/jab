@@ -3,17 +3,20 @@ jab -- CLI-based Jabber client of/by/for Ruby
 Author:	Chip Camden
 Date:	June, 2010
 Site:	http://chipstips.com/?tag=rbjab
-hg:	http://bitbucket.org/sterlingcamden/jab
+Hg:	http://bitbucket.org/sterlingcamden/jab
+
+GENERAL DESCRIPTION
 
 jab provides a minimal, text-only, serial (no cursing) XMPP client
 written in Ruby, that uses Ruby as its command language.  jab provides
 methods to handle the common set of chat tasks, but of course you can
-execute any Ruby code within its read-eval-print loop.
+execute any Ruby code within its read-eval loop.
 
 jab binds the execution context of all evaluated commands to a
-proc inside a class named Sandbox.  This means any variables you define
-will not conflict with variables internal to jab, and any classes or
-methods you define will be contained within the Sandbox class.
+proc inside the Jab class.  This means any local variables you define
+will not conflict with variables in the calling program, and any
+methods or instance variables you define will be contained within the
+Jab class.
 
 To set up your environment each time you start jab, you can place
 commands in a file named ~/.jabrc -- if that file exists, it will be
@@ -25,7 +28,9 @@ upon: .jab-aliases (dot.jab-aliases) and .jab-colors (dot.jab-colors).
 You can use these as patterns for creating your own customized jab
 session.
 
-For the list of provided commands, type 'help' at the prompt (:).
+For the list of provided commands, type 'help' at the prompt (:).  Help
+pages its output by piping it to the executable named in the PAGER
+environment variable, or "less" is PAGER is not set.
 
 jab supports command history and vi-style editing, using
 Readline.vi_editing_mode.  Whenever a prompt includes a list of possible
@@ -47,3 +52,22 @@ you, and you'll get another prompt.
 
 When you're all done, you can press Ctrl+D (EOF) to exit jab, or use the
 'q' or 'exit' commands.
+
+INSTALLATION
+
+Place the file jab.rb in a directory that is included in your Ruby load
+path.  To see what directories are included, use the command:
+
+ruby -e "puts $:"
+
+You can also specify a directory to add to the load path using Ruby's -I
+switch.
+
+Place the file jab in a directory in your PATH, unless you want to always
+execute it specifying the full path.
+
+Edit default commands into ~/.jabrc, and you're ready to go!
+
+jab
+
+END
