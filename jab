@@ -7,11 +7,8 @@ include Jabber
 
 class Sandbox
   def binding
-    (Proc.new {}).binding
+    @binding ||= (Proc.new {}).binding
   end
-end
-
-class Object
   def method_missing(sym, *args)
     args.unshift(sym.to_s).join(' ')
   end
