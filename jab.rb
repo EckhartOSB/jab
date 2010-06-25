@@ -32,14 +32,14 @@ class Jab
   #  that doesn't contain `' will not indicate a caller,
   #  but nil will use the caller of this function.
   def ask(prompt, silent=nil, call=nil)
-    system 'stty -echo' if silent
+    system 'stty -echo' if silent && $stdin.isatty
     /.*`(.*)'/ =~ (call ? call : caller[0])
     p = $1 ? "(#{$1}) #{prompt}: " : "#{prompt}: "
     @colors.each do |cla|
       p.gsub! *cla
     end
-    res = Readline.readline(p, true)
-    system('stty echo') && puts('') if silent
+    res = $stdin.isatty ? Readline.readline(p, true) : $stdin.gets
+    system('stty echo') && puts('') if silent && $stdin.isatty
     res ? res.chomp : res
   end
 
@@ -86,6 +86,7 @@ class Jab
 	@client = Client::new jid
 	@client.connect
 	@client.auth pw
+	@user = user
 
 	# when we receive a message...
 	@client.add_message_callback do |m|
@@ -193,7 +194,19 @@ class Jab
       pres.show = s.to_sym
       pres.status = msg || ask("message [none]")
       @client.send pres
+      @presence = pres		# for later reporting
     end
+  end
+
+  # report current settings
+  def settings
+    interject :always, @user, "status :" + (@presence ?
+      @presence.show.to_s + (@presence.status ? ", '#{@presence.status}'" : '') :
+      "unknown")
+    @notify.each do |what, onoff|
+      interject :always, @user, "hush :#{what.to_s}" if !onoff
+    end
+    interject :always, @user, "when_tapped :#{@accept.to_s}"
   end
 
   # change our notification preferences
@@ -287,16 +300,17 @@ site: #{SITE}
 commands:
 
 about						information about jab
-color pattern [sequence...]			prefix pattern with sequence
-connect ["user@domain/resource"] ["password"]	connect to XMPP server
+color pattern, [sequence...]			prefix pattern with sequence
+connect ["user@domain/resource"], ["password"]	connect to XMPP server
 help						print this list
 hush [type]					suppress certain messages
-jab [user] [message]				send a message
+jab [user], [message]				send a message
 q						exit
+settings					display current settings
 shove [user]					unsubscribe from user
-source [file] [ignore_fnf]			read file for commands
-status [sts] [message]				set availability status
-tap [user]					request subscription to user
+source [file], [ignore_fnf]			read file for commands
+status [sts], [message]				set availability status
+tap [user]					request subscription or status
 unhush [type]					allow certain messages
 when_tapped [action]				how to handle sub requests
 <eof>						exit
@@ -312,13 +326,15 @@ which creates the variable chip in the sandboxed context.  Now you can:
 jab chip
 
 If the file ~/.jabrc exists, it will be evaluated prior to asking you
-for commands.
+for commands.  You can override this file by using the -r command line
+switch.  See the README.
 
 If an identifier is not recognized, it will be converted into its string
 equivalent.  Thus, by default, red = "red".
 
 Autocompletion is enabled when asked a multiple-choice question.  Just
-press Tab.
+press Tab.  Line editing mode is vi by default, but you can specify emacs
+with the -e command line switch.
 
 Sequences for the color command can be generated from termcap using the
 addtional commands 'fg' and 'bg', which each take a color name or number
