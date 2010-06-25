@@ -10,7 +10,7 @@ written in Ruby, that uses Ruby as its command language.  jab provides
 methods to handle the common set of chat tasks, but of course you can
 execute any Ruby code within its read-eval-print loop.
 
-jab binds the execution contect of all evaluated commands commands to a
+jab binds the execution context of all evaluated commands to a
 proc inside a class named Sandbox.  This means any variables you define
 will not conflict with variables internal to jab, and any classes or
 methods you define will be contained within the Sandbox class.
@@ -22,7 +22,7 @@ executed before jab asks you for input.  Typical commands placed in
 colors, and user-specific functions.  An example .jabrc file is included
 with this distribution as dot.jabrc, along with two files that it relies
 upon: .jab-aliases (dot.jab-aliases) and .jab-colors (dot.jab-colors).
-You can use this as patterns for creating your own customized jab
+You can use these as patterns for creating your own customized jab
 session.
 
 For the list of provided commands, type 'help' at the prompt (:).
@@ -33,7 +33,7 @@ responses, command completion is available by pressing Tab.
 
 jab does not provide conversation logging, but you can easily accomplish
 that by redirecting output through tee.  jab does not separate multiple,
-simultaneous coonversations, but it does provide visual cues to tell you
+simultaneous conversations, but it does provide visual cues to tell you
 not only who said something but to whom your next line of text will go if
 you don't switch jabs.
 
