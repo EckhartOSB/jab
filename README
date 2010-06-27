@@ -29,16 +29,17 @@ upon: .jab-aliases (dot.jab-aliases) and .jab-colors (dot.jab-colors).
 You can use these as patterns for creating your own customized jab
 session.
 
-For the list of provided commands, type 'help' at the prompt (:).  Help
+For the list of common commands, type 'help' at the prompt (:).  Help
 pages its output by piping it to the executable named in the PAGER
-environment variable, or "less" is PAGER is not set.
+environment variable, or "less" if PAGER is not set.  For full command
+reference, see the REFERENCE section below.
 
 jab supports command history and either vi-style or emacs-style editing,
 using Readline.  Whenever a prompt includes a list of possible
 responses, command completion is available by pressing Tab.
 
 jab does not provide conversation logging, but you can easily accomplish
-that by redirecting output through tee.  jab does not separate multiple,
+that by redirecting output through tee(1).  jab does not separate multiple,
 simultaneous conversations, but it does provide visual cues to tell you
 not only who said something but to whom your next line of text will go if
 you don't switch jabs.
@@ -51,8 +52,8 @@ empty line is always ignored when entering commands or messages.  If you
 panic and press Ctrl+C, no worries -- the interrupt will be reported to
 you, and you'll get another prompt.
 
-When you're all done, you can press Ctrl+D (EOF) to exit jab, or use the
-'q' or 'exit' commands.
+When you're all done, you can press EOF (usually Ctrl+D on Unix systems)
+to exit jab, or use the 'q' or 'exit' commands.
 
 INSTALLATION
 
@@ -65,7 +66,7 @@ You can also specify a directory to add to the load path using Ruby's -I
 switch.
 
 Place the file jab in a directory in your PATH, unless you want to always
-execute it specifying the full path.
+execute it by specifying the full path.
 
 Edit default commands into ~/.jabrc, and you're ready to go!
 
@@ -77,5 +78,353 @@ COMMAND LINE OPTIONS
 -h, --help		Display help and exit
 -r, --rcfile RCFILE	Use a different startup file (can use more than one)
 -v, --version		Display version and exit
+
+REFERENCE
+
+This section documents all of the methods of the Jab class, which can
+naturally be used as commands in jab along with other Ruby statements.
+
+---
+
+about => nil
+
+Prints version, author, and web site information.
+
+---
+
+ask(prompt, silent=nil, call=nil) => string or nil
+
+Displays prompt to the user (applying any color filters), and returns the
+user's response.  If silent is true and $stdin is a terminal, turns echo
+off and back on using stty(1).  Prompt is prefixed by the name of the
+caller, in parentheses -- but that can be suppressed by passing call as
+''.  You can also override the name of the caller by passing call as a
+string containing the desired caller in `' (back-quote, single-quote).
+
+If the user presses the EOF key, ask returns nil -- otherwise, whatever
+the user entered.
+
+When $stdin is a terminal, command line editing and recall are enabled
+using the Readline module.  Editing mode is vi by default, but can be
+overridden to emacs using the -e command line switch.
+
+---
+
+bg(color) => string
+
+Synonym for get_color('AB', color).
+
+---
+
+color(what, *how) => Array
+
+Adds a color filter to all output.  The what parameter is required and
+must be a regular expression (or something that can be converted into a
+regular expression via Regexp.new) that specifies the portion of the
+string to which to apply color.  Thus, if you want to color the whole
+string, be sure that your expression includes the beginning and end of
+the string.
+
+The remaining parameters specify colors to apply.  They should be
+terminal-specific strings of escape sequences to apply colors.  You can
+generate these sequences using the 'fg', 'bg', or 'get_color' methods.
+The sequences will be prefixed, in order, to the matching portion of the
+string.  If one or more sequences are specified, then the matching
+portion of the string will be followed by the terminal-specific sequence
+for the "op" termcap capability.
+
+Care should be taken when specifying two or more color filters that may
+apply to the same string.  All color filters will be applied in the order
+specified, but the application of one filter may prevent another one from
+matching -- because each escape sequence gets inserted into the original
+string.
+
+Some examples of color filters can be found in the file dot.jab-colors.
+
+---
+
+connect(user=nil, password=nil) => Boolean
+
+Connects to an XMPP server.  The user argument should be in the form
+"user@domain/resource".  If nil, the user will be asked to enter it.
+Likewise, if password is not provided, the user will be asked for it,
+using the silent option on 'ask'.
+
+Returns true if the connection was established.  Returns false if the
+user entered EOF at any prompt.  Raises an error if the connection
+failed.
+
+---
+
+fg(color) => string
+
+Synonym for get_color('AF', color).
+
+---
+
+get_color(cap, color) => string
+
+Returns the character sequence for the termcap capability named cap for
+the current terminal, given the argument color, via tput(1).
+
+Obviously, this depends on being able to execute tput(1).
+
+While this is used for colors in jab, it could also be used for any
+termcap capability (by passing any arguments joined by spaces in color).
+
+---
+
+getcmd => string or nil
+
+Asks the user for input using only a ':' prompt (still applying any color
+filter).  Rescues Interrupt and prints "interrupted" instead of a full
+exception.  Returns the command typed, or '' if interrupted, or nil if
+the user entered EOF.
+
+---
+
+handle_requests => Boolean
+
+Asks the user to confirm any pending subscription requests when the
+subscription handling action is :ask (see 'when_tapped').  This method
+is called automatically within the 'interact' loop, so you only need to
+call it if you are using these methods outside of 'interact'.
+
+---
+
+help => nil
+
+Outputs helpful information by piping it through the utility named in the
+environment variable PAGER.  If PAGER is not set, "less" is used.
+
+---
+
+hush(what) => false
+
+Synonym for notify(what, false).
+
+---
+
+interact => nil
+
+A read/eval loop for interactive jabbing.  As long as the user does not
+press EOF or enter some equivalent of 'exit', the loop continues.  Each
+command is evaluated within the sandboxed binding.  Any errors are
+rescued and reported to the user.
+
+This method cannot proceed without an XMPP connection, so if one is not
+established it will ask the user for login credentials and attempt to
+connect.  If a connection is not established, this method also returns
+nil.
+
+---
+
+interject(type, sender, message) => nil
+
+Provides a layer over 'say' for filtering messages based on notification
+preferences.  The type argument is a symbol for filtering, per the
+'notify' method -- typically one of :errors, :info, :status, :jabs, or
+:always.  If the corresponding element of the @notify array is true, the
+message will be displayed, otherwise suppressed.
+
+The sender argument becomes the first element of the message.  It may be
+nil to suppress that portion.
+
+The message will be terminated with a newline.
+
+---
+
+jab(user=nil, message=nil) => nil
+
+Sends an XMPP chat message to user.  The user argument should be in the
+form 'user@domain' or 'user@domain/resource'.  The user will be asked for
+it if nil.
+
+If the message argument is nil, jab accepts messages in a loop until EOF.
+Each prompt includes the destination user ID, so you can easily tell to
+whom you are chatting.
+
+Message send errors are not synchronous, so this method always returns
+nil.  If an error occurs, it will be displayed to the user via
+'interject' with type :errors.
+
+---
+
+multiask(choices, default=nil, call=nil) => string or nil
+
+Uses ask to retrieve a multiple-choice answer from the user.  The choices
+argument should be an array of strings containing the possible choices,
+and the prompt will be composed of these, separated by '/'.  If default
+is non-nil, the choice that matches it will be enclosed in [] in the
+prompt, and will be returned if the user enters only Return.  Otherwise,
+the user's input must match one of the choices.  Auto-completion is
+enabled through the Readline module to match one of the choices.
+
+The call parameter behaves exactly as for 'ask' -- with the exception
+that if not passed, it defaults to the caller of multiask.
+
+---
+
+notify(what=nil, how) => Boolean
+
+Enables or disables a class of notifications.  The what argument will
+typically be one of the following:
+
+:all		combination of :errors, :info, :jabs, and :status
+:errors		error messages
+:info		informational messages
+:jabs		messages from other users
+:status		status updates from users
+
+If what is not passed, the user will be asked for one of the above
+choices.
+
+If how is true, the specified notification(s) will be enabled, otherwise
+disabled.
+
+If you pass what, it can be something other than one of the above, which
+allows you to create a new class of notifications for you own use.  I'd
+recommend avoiding :always, as that is used internally for notifications
+that may not be suppressed.
+
+Returns how.
+
+---
+
+q
+
+Synonym for 'exit'.
+
+---
+
+say(what) => nil
+
+Prints what to $stdout, after applying any color filters.
+
+---
+
+settings => nil
+
+Prints current settings to $stdout, after applying any color filters.
+
+The following settings are reported:
+
+status :state, 'message'	# current availability status
+hush :type			# any suppressed notifications
+when_tapped :action		# how to handle subscription requests
+
+Each line is prefixed with the current user account.
+
+---
+
+shove(user=nil) => nil
+
+Sends an :unsubscribe request to user.  If user is nil, the user will be
+asked for it.
+
+While there is a supported mechanism to receive responses to this
+request, I have yet to see any server provide them.
+
+---
+
+source(file=nil, ignore_fnf=nil) => Object or nil
+
+Processes commands from file.  if file is nil, the user will be asked for
+it.  Returns the result of evaluating file -- or nil if an error occurred,
+the user pressed EOF, or the file does not exist and ignore_fnf is true.
+
+The entire file is evaluated in one eval statement, so statements can
+cross line boundaries (unlike within 'interact').  If an error occurs, it
+is rescued and reported to the user.  As with 'interact', all commands
+are evaluated within a sandboxed binding.
+
+If ignore_fnf is true, then if the file does not exist no error occurs.
+Otherwise, an Errno:ENOENT error is reported.
+
+---
+
+status(state=nil, message=nil) => Jabber::Presence or nil
+
+Set the user's current status.  State must be one of :away, :chat, :dnd
+(do not disturb), or :xa (extended away), but may be a string instead of
+a symbol.  If nil, the user will be asked, with the default being :chat.
+
+The message argument is an optional text description of the status.  If
+nil, the user will be asked.  Use an empty string for no message.
+
+Returns the new Jabber::Presence resulting from the specified status, or
+nil if the user pressed EOF at any prompt.
+
+---
+
+tap(user=nil) => nil
+
+Sends a :subscribe request to user.  If user is nil, the user will be
+asked for it.
+
+Most XMPP servers respond to this message with a status update if you
+have successfully subscribed now or in the past, so you can use this
+command to check status of an existing friend as well as to subscribe to
+a new one.
+
+---
+
+unhush(what) => true
+
+Synonym for notify(what, true).
+
+---
+
+when_tapped(action) => Symbol or nil
+
+Specify how to handle incoming subscription requests.  Action may be one
+of the following, or its string equivalent:
+
+:ask	Ask the user on the next call to 'handle_requests'
+:y	Always approve
+:n	Always decline
+
+If action is nil, the user will be asked for one of the above.  If the
+user presses EOF, returns nil, otherwise the symbol.
+
+---
+
+MEMBER VARIABLES
+
+Because each command is evaluated within a proc inside the Jab class, you
+can access instance and class variables of the Jab class.  The following
+variables are provided:
+
+@@numcolors Number of colors supported by this terminal.  This is only set
+	    on the first call to 'get_color'.
+
+@@op	    The terminal-specific sequence for the termcap capability "op".
+	    This is only set on the first execution of 'color'.
+
+@accept	    How to handle subscription requests.  One of :ask, :y, or :n.
+
+@client	    Jabber::Client for the connection.
+
+@colors	    Array of color filters.  Each element of the Array is an Array
+	    of [Regexp, String], where Regexp is the regular expression of
+	    the match, and String is what to replace it with (using
+	    String#gsub!)
+
+@notify	    Hash of notification settings.  Each element is Symbol =>
+	    Boolean, where Symbol is one of the notification type symbols,
+	    and Boolean is true if enabled.
+
+@pager	    Pager command to use for 'help'.
+
+@presence   Jabber::Presence from last status modification for this user.
+
+@requests   Queue of pending subscription requests.  Each element of the
+	    Array is a Jabber::Presence from a request.
+
+@roster	    Jabber::Roster::Helper for the connection.
+
+@sandbox    Binding for command evaluation.
+
+@user	    Currently connected username.
 
 END

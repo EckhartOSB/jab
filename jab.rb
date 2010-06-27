@@ -128,11 +128,12 @@ class Jab
 	  interject :status, new.from, 'is ' + (new.show ? new.show.to_s : 'available') + (new.status ? ': ' + new.status : '')
 	end
 	say "done.\n" if @notify[:info]
+	true
       else
-	exit 1
+	false
       end
     else
-      exit 1
+      false
     end
   end
 
@@ -172,6 +173,7 @@ class Jab
 	puts ''
       end
     end
+    nil
   end
 
   # request subscription or status
@@ -193,8 +195,10 @@ class Jab
       pres = Presence.new
       pres.show = s.to_sym
       pres.status = msg || ask("message [none]")
-      @client.send pres
-      @presence = pres		# for later reporting
+      if pres.status
+	@client.send pres
+	@presence = pres		# for later reporting
+      end
     end
   end
 
@@ -261,8 +265,8 @@ class Jab
   # internal routine for retrieving a termcap sequence for setting a color
   def get_color(cap, c)
      cn = ["black", "red", "green", "yellow", "blue", "magenta", "cyan", "white", "grey"].index(c.to_s.downcase) || c.to_i
-     @numcolors ||= `tput Co`.to_i
-     raise "color #{cn} not supported by terminal" if cn >= @numcolors
+     @@numcolors ||= `tput Co`.to_i
+     raise "color #{cn} not supported by terminal" if cn >= @@numcolors
      `tput #{cap} #{cn}`
   end
 
@@ -369,8 +373,7 @@ END
   # your basic read/eval loop, with the additional synchronized
   # handling of asynchronous requests
   def interact
-    connect if !@client
-    while handle_requests && (cmd = getcmd)
+    while (@client || connect) && handle_requests && (cmd = getcmd)
       begin
 	eval cmd, @sandbox
       rescue SystemExit => exc
