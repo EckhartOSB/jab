@@ -10,6 +10,10 @@ class Jab
   AUTHOR = "Chip Camden"
   SITE = "http://chipstips.com/?tag=rbjab"
 
+  # commands for determining terminal capabilities
+  @@termcap = { 'Co' => 'tput Co', 'AB' => 'tput AB %d', 'AF' => 'tput AF %d', 'op' => 'tput op' }
+  @@use_readline = true			# use readline if a tty
+
   def initialize
     #Jabber::debug = true
     @requests = []			# pending subscription requests
@@ -38,7 +42,10 @@ class Jab
     @colors.each do |cla|
       p.gsub! *cla
     end
-    res = $stdin.isatty ? Readline.readline(p, true) : $stdin.gets
+    res = (@@use_readline && $stdin.isatty) ? Readline.readline(p, true) : begin
+									     print p
+    									     $stdin.gets
+									   end
     system('stty echo') && puts('') if silent && $stdin.isatty
     res ? res.chomp : res
   end
@@ -265,9 +272,9 @@ class Jab
   # internal routine for retrieving a termcap sequence for setting a color
   def get_color(cap, c)
      cn = ["black", "red", "green", "yellow", "blue", "magenta", "cyan", "white", "grey"].index(c.to_s.downcase) || c.to_i
-     @@numcolors ||= `tput Co`.to_i
+     @@numcolors ||= `#{@@termcap['Co']}`.to_i
      raise "color #{cn} not supported by terminal" if cn >= @@numcolors
-     `tput #{cap} #{cn}`
+     `#{sprintf(@@termcap[cap], cn)}`
   end
 
   # sequence for setting foreground
@@ -285,7 +292,7 @@ class Jab
   # how is zero or more escape sequences, most likely returned by fg or bg
   def color(what,*how)
     if how.size > 0
-      @@op ||= `tput op`
+      @@op ||= `#{@@termcap['op']}`
       @colors << [Regexp.new(what), how.join('') + '\0' + @@op]
     end
   end
@@ -345,7 +352,8 @@ addtional commands 'fg' and 'bg', which each take a color name or number
 as an argument.  The only names recognized are "black", "red", "green",
 "blue", "magenta", "cyan", "white", and "grey" -- but you can pass any
 color number that is supported by the termcap entry for your terminal
-type.  This capability relies on being able to execute 'tput'.
+type.  This capability relies on being able to execute 'tput', unless
+you override the commands in @@termcap.
 
 Examples:
 

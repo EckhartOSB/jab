@@ -36,7 +36,8 @@ reference, see the REFERENCE section below.
 
 jab supports command history and either vi-style or emacs-style editing,
 using Readline.  Whenever a prompt includes a list of possible
-responses, command completion is available by pressing Tab.
+responses, command completion is available by pressing Tab.  You can
+suppress the use of Readline by setting @@use_readline to false.
 
 jab does not provide conversation logging, but you can easily accomplish
 that by redirecting output through tee(1).  jab does not separate multiple,
@@ -165,9 +166,9 @@ Synonym for get_color('AF', color).
 get_color(cap, color) => string
 
 Returns the character sequence for the termcap capability named cap for
-the current terminal, given the argument color, via tput(1).
-
-Obviously, this depends on being able to execute tput(1).
+the current terminal, given the argument color.  By default, this uses
+tput(1), but you can override that by setting @@termcap['AF'] and
+@@termcap['AB'].
 
 While this is used for colors in jab, it could also be used for any
 termcap capability (by passing any arguments joined by spaces in color).
@@ -395,36 +396,42 @@ Because each command is evaluated within a proc inside the Jab class, you
 can access instance and class variables of the Jab class.  The following
 variables are provided:
 
-@@numcolors Number of colors supported by this terminal.  This is only set
-	    on the first call to 'get_color'.
+@@numcolors 	Number of colors supported by this terminal.  This is only set
+	    	on the first call to 'get_color'.
 
-@@op	    The terminal-specific sequence for the termcap capability "op".
-	    This is only set on the first execution of 'color'.
+@@op	   	The terminal-specific sequence for the termcap capability "op".
+	  	This is only set on the first execution of 'color'.
 
-@accept	    How to handle subscription requests.  One of :ask, :y, or :n.
+@@termcap	Hash of termcap capability and command used to retrieve it.
+		The default is to use tput.
 
-@client	    Jabber::Client for the connection.
+@@use_readline  Whether to use the Readline module for terminal input.
+	      	True by default.
 
-@colors	    Array of color filters.  Each element of the Array is an Array
-	    of [Regexp, String], where Regexp is the regular expression of
-	    the match, and String is what to replace it with (using
-	    String#gsub!)
+@accept	    	How to handle subscription requests.  One of :ask, :y, or :n.
 
-@notify	    Hash of notification settings.  Each element is Symbol =>
-	    Boolean, where Symbol is one of the notification type symbols,
-	    and Boolean is true if enabled.
+@client	    	Jabber::Client for the connection.
 
-@pager	    Pager command to use for 'help'.
+@colors	    	Array of color filters.  Each element of the Array is an Array
+	    	of [Regexp, String], where Regexp is the regular expression of
+	    	the match, and String is what to replace it with (using
+	    	String#gsub!)
 
-@presence   Jabber::Presence from last status modification for this user.
+@notify	    	Hash of notification settings.  Each element is Symbol =>
+	    	Boolean, where Symbol is one of the notification type symbols,
+	    	and Boolean is true if enabled.
 
-@requests   Queue of pending subscription requests.  Each element of the
-	    Array is a Jabber::Presence from a request.
+@pager	    	Pager command to use for 'help'.
 
-@roster	    Jabber::Roster::Helper for the connection.
+@presence   	Jabber::Presence from last status modification for this user.
 
-@sandbox    Binding for command evaluation.
+@requests   	Queue of pending subscription requests.  Each element of the
+	    	Array is a Jabber::Presence from a request.
 
-@user	    Currently connected username.
+@roster	    	Jabber::Roster::Helper for the connection.
+
+@sandbox    	Binding for command evaluation.
+
+@user	    	Currently connected username.
 
 END
