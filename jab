@@ -28,7 +28,7 @@ end
 
 begin
   optparse.parse!
-rescue OptionParser::InvalidOption => e
+rescue OptionParser::InvalidOption, OptionParser::MissingArgument => e
   puts e
   puts optparse
   exit 1
