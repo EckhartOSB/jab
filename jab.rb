@@ -197,10 +197,10 @@ class Jab
 
   # change our status
   def status(sts=nil, msg=nil)
-    s = sts || multiask(['away','chat','dnd','xa'], 'chat')
+    s = sts || multiask(['available','away','chat','dnd','xa'], 'available')
     if s
       pres = Presence.new
-      pres.show = s.to_sym
+      pres.show = (s.to_sym == :available) ? nil : s.to_sym
       pres.status = msg || ask("message [none]")
       if pres.status
 	@client.send pres
@@ -212,7 +212,8 @@ class Jab
   # report current settings
   def settings
     interject :always, @user, "status :" + (@presence ?
-      @presence.show.to_s + (@presence.status ? ", '#{@presence.status}'" : '') :
+      (@presence.show ? @presence.show.to_s : 'available') +
+      (@presence.status ? ", '#{@presence.status}'" : '') :
       "unknown")
     @notify.each do |what, onoff|
       interject :always, @user, "hush :#{what.to_s}" if !onoff

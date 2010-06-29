@@ -346,9 +346,10 @@ Otherwise, an Errno:ENOENT error is reported.
 
 status(state=nil, message=nil) => Jabber::Presence or nil
 
-Set the user's current status.  State must be one of :away, :chat, :dnd
-(do not disturb), or :xa (extended away), but may be a string instead of
-a symbol.  If nil, the user will be asked, with the default being :chat.
+Set the user's current status.  State must be one of :available, :away,
+:chat, :dnd (do not disturb), or :xa (extended away), but may be a string
+instead of a symbol.  If nil, the user will be asked, with the default being
+:available.
 
 The message argument is an optional text description of the status.  If
 nil, the user will be asked.  Use an empty string for no message.
