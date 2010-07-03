@@ -6,7 +6,7 @@ include Jabber
 
 class Jab
 
-  VERSION = "0.2"
+  VERSION = "0.3"
   AUTHOR = "Chip Camden"
   SITE = "http://chipstips.com/?tag=rbjab"
 
@@ -23,6 +23,7 @@ class Jab
     @accept = :ask			# prompt for subscriptions by default
     @sandbox = (Proc.new {}).binding	# safe place for userboy to play
     @pager = ENV['PAGER'] || 'less'	# pager for help
+    @statuses = {}			# user => [:status, 'message']
   end
 
   # if you forget to quote something, maybe we can do it for you.
@@ -132,7 +133,11 @@ class Jab
 	end
 	# notification of status change
 	@roster.add_presence_callback do |roster, old, new|
-	  interject :status, new.from, 'is ' + (new.show ? new.show.to_s : 'available') + (new.status ? ': ' + new.status : '')
+	  prev = @statuses[new.from.to_s]
+	  if !prev || (prev[0] != new.show) || (prev[1] != new.status)	# Avoid repeating status
+	    @statuses[new.from.to_s] = [new.show, new.status]
+	    interject :status, new.from, 'is ' + (new.show ? new.show.to_s : 'available') + (new.status ? ': ' + new.status : '')
+	  end
 	end
 	say "done.\n" if @notify[:info]
 	true
@@ -185,7 +190,10 @@ class Jab
 
   # request subscription or status
   def tap(user=nil)
-    who = user || ask("whom")
+    who = user.to_s || ask("whom")
+    @statuses.each do |name, sts|
+      @statuses[name] = nil if name[0,who.length] == who
+    end
     @client.send Presence.new.set_type(:subscribe).set_to(who) if who
   end
 
