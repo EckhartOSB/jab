@@ -23,8 +23,10 @@ def write_new
 end
 
 on :input do |cmd|
-  @new_jabs = 0
-  write_new
+  if @new_jabs != 0
+    @new_jabs = 0
+    write_new
+  end
   cmd			# must return the command
 end
 
