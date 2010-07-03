@@ -1,0 +1,35 @@
+# jab script for creating an external notification of new jabs
+#
+# the count of 'unread' jabs will be written to a file:
+# ~/.jabs/new
+#
+# unread is defined as jabs that occurred since the last time
+# the user entered a command.  Thus, pressing Enter in jab clears
+# all 'unread'.
+#
+# an external program such as xmobar can then pick up the
+# contents of ~/.jab/new.
+#
+# You can enable this script at all times by sourcing it in
+# your .jabrc:
+#
+#   source "notify-new"	# may need to specify path
+#
+
+def write_new
+  File.open File.expand_path("~/.jab/new"), "w" do |f|
+    f.puts @new_jabs
+  end
+end
+
+on :input do |cmd|
+  @new_jabs = 0
+  write_new
+  cmd			# must return the command
+end
+
+on :jab do |body|
+  @new_jabs += 1
+  write_new
+  body			# must return the jab body
+end

@@ -24,6 +24,7 @@ class Jab
     @sandbox = (Proc.new {}).binding	# safe place for userboy to play
     @pager = ENV['PAGER'] || 'less'	# pager for help
     @statuses = {}			# user => [:status, 'message']
+    @events = {}			# :event => [proc...]
   end
 
   # if you forget to quote something, maybe we can do it for you.
@@ -39,7 +40,7 @@ class Jab
   def ask(prompt, silent=nil, call=nil)
     system 'stty -echo' if silent && $stdin.isatty
     /.*`(.*)'/ =~ (call ? call : caller[0])
-    p = $1 ? "(#{$1}) #{prompt}: " : "#{prompt}: "
+    p = filter_event(:prompt, $1 ? "(#{$1}) #{prompt}: " : "#{prompt}: ").to_s
     @colors.each do |cla|
       p.gsub! *cla
     end
@@ -48,7 +49,7 @@ class Jab
     									     $stdin.gets
 									   end
     system('stty echo') && puts('') if silent && $stdin.isatty
-    res ? res.chomp : res
+    filter_event :input, res ? res.chomp : res
   end
 
   # ask a multiple-choice question.
@@ -79,7 +80,7 @@ class Jab
 
   # stylized messages from jab, filtered by @notify
   def interject(type, sender, msg)
-    say ">#{sender || ''} #{msg}\n" if @notify[type]
+    say filter_event(:interject, ">#{sender || ''} #{msg}\n").to_s if @notify[type]
   end
 
   # connect to an XMPP server
@@ -101,7 +102,7 @@ class Jab
 	  case m.type
 	    when :chat || :normal
 	      if m.body
-		interject :jabs, m.from, 'jabs: ' + m.body
+		interject :jabs, m.from, 'jabs: ' + filter_event(:jab, m.body).to_s
 	      end
 	    when :error
 	      interject :errors, m.from, 'ducked your jab:' + m.to_s.gsub(/<\/\w+>/,'').gsub(/\/?>/,'').gsub(/</,"\n>").gsub(/xmlns=(['"]).+?\1/,'')
@@ -139,6 +140,7 @@ class Jab
 	    interject :status, new.from, 'is ' + (new.show ? new.show.to_s : 'available') + (new.status ? ': ' + new.status : '')
 	  end
 	end
+	signal_event :connect
 	say "done.\n" if @notify[:info]
 	true
       else
@@ -146,6 +148,15 @@ class Jab
       end
     else
       false
+    end
+  end
+
+  # disconnect from the server
+  def disconnect
+    if @client
+      signal_event :disconnect
+      @client.close
+      @client = nil
     end
   end
 
@@ -164,6 +175,32 @@ class Jab
       end
     end
     true
+  end
+
+  # associate a proc with an event
+  def on(event, &block)
+    e = event.to_sym
+    @events[e] = (@events[e] || []) << block
+  end
+
+  # call procs associated with an event
+  def signal_event(event, *args)
+    rslt = nil
+    if (procs = @events[event.to_sym])
+      procs.each { |p| rslt = p.call(args) }
+    end
+    rslt
+  end
+
+  # call procs used as a filter for an argument
+  def filter_event(event, arg)
+    if (procs = @events[event.to_sym])
+      newval = arg
+      procs.each { |p| newval = p.call(newval) }
+      newval
+    else
+      arg
+    end
   end
 
   # send message(s)

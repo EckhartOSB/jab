@@ -102,8 +102,12 @@ caller, in parentheses -- but that can be suppressed by passing call as
 ''.  You can also override the name of the caller by passing call as a
 string containing the desired caller in `' (back-quote, single-quote).
 
+The prompt may be further filtered by providing a proc for the :prompt
+event.  See 'on' and EVENTS.
+
 If the user presses the EOF key, ask returns nil -- otherwise, whatever
-the user entered.
+the user entered.  However, input may be filtered by assigning a proc
+to the :input event.  See 'on' and EVENTS.
 
 When $stdin is a terminal, command line editing and recall are enabled
 using the Readline module.  Editing mode is vi by default, but can be
@@ -114,6 +118,15 @@ overridden to emacs using the -e command line switch.
 bg(color) => string
 
 Synonym for get_color('AB', color).
+
+---
+
+signal_event(event, *args) => Object or nil
+
+Calls all procs associated with event, in the order they were specified.
+Returns the result of the last such proc, or nil if no such events are
+specified.  See 'on'.  Any arguments passed to signal_event will in turn
+be passed to each proc.
 
 ---
 
@@ -154,6 +167,28 @@ using the silent option on 'ask'.
 Returns true if the connection was established.  Returns false if the
 user entered EOF at any prompt.  Raises an error if the connection
 failed.
+
+After a connection is successfully established, the :connect event is
+signaled.
+
+---
+
+disconnect => nil
+
+Disconnects any current session.  In interactive mode, 'interact' will
+immediately prompt for a new connection.
+
+Prior to closing the connection, the :disconnect event is signaled.
+
+---
+
+filter_event(event, arg) => Object
+
+Applies the procs associated with event as filters to arg.  Each
+proc associated with event (if any) is called in the order specified,
+passing arg as an argument.  Whatever the proc returns becomes the new
+value of arg.  Returns the final value, or the original value if no
+procs are defined for event.  See 'on'.
 
 ---
 
@@ -263,6 +298,19 @@ enabled through the Readline module to match one of the choices.
 
 The call parameter behaves exactly as for 'ask' -- with the exception
 that if not passed, it defaults to the caller of multiask.
+
+---
+
+on(event, &proc=nil) => Array
+
+Adds to and/or returns the list of procs to call on an event.  The event
+parameter is a symbol (or will be converted to a symbol) that is used to
+identify the event.  For the list of events that are used by jab, see
+EVENTS below.  Of course, you may add and signal your own events as well.
+See 'signal_event' and 'filter_event'.
+
+If proc is non-nil, it will be added to the list of procs to call for
+this event.  In any case, this method returns that list.
 
 ---
 
@@ -391,6 +439,33 @@ user presses EOF, returns nil, otherwise the symbol.
 
 ---
 
+
+EVENTS
+
+You may define and signal any number of events, but the folloiwng list
+indicates pre-defined events that are signaled by jab.  See 'on', 
+'signal_event', and 'filter_event'.
+
+Event		When called			Arguments	Returns
+-----		-----------			---------	-------
+:connect	'connect' after opening		none		ignored
+		the connection
+
+:disconnect	'disconnect' before		none		ignored
+		closing the connection
+
+:input		'ask' after user presses Enter	user input	filtered input
+						(string or nil)
+
+:interject	'interject' before output	(string)	filtered string
+
+:jab		before displaying an incoming	body of jab	filtered body
+		jab (occurs before :interject)	(string)
+
+:prompt		'ask' before prompting user	prompt (string)	filtered prompt
+		(and before applying colors)
+
+
 MEMBER VARIABLES
 
 Because each command is evaluated within a proc inside the Jab class, you
@@ -418,6 +493,9 @@ variables are provided:
 	    	the match, and String is what to replace it with (using
 	    	String#gsub!)
 
+@events		Hash of :event => [proc...], hooks to call on certain events.
+		Set by 'on'.
+
 @notify	    	Hash of notification settings.  Each element is Symbol =>
 	    	Boolean, where Symbol is one of the notification type symbols,
 	    	and Boolean is true if enabled.
@@ -432,6 +510,9 @@ variables are provided:
 @roster	    	Jabber::Roster::Helper for the connection.
 
 @sandbox    	Binding for command evaluation.
+
+@statuses	Hash of user => [:status, 'message'] for previously seen status
+		updates.
 
 @user	    	Currently connected username.
 

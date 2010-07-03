@@ -47,3 +47,4 @@ end
 
 session.source "~/.jabrc", true if !gotrc
 session.interact
+session.disconnect
