@@ -135,7 +135,7 @@ class Jab
 	# notification of status change
 	@roster.add_presence_callback do |roster, old, new|
 	  prev = @statuses[new.from.to_s]
-	  if !prev || (prev[0] != new.show) || (prev[1] != new.status)	# Avoid repeating status
+	  if !prev || (prev[0] != new.show) || (new.status && (prev[1] != new.status))	# Avoid repeating status
 	    @statuses[new.from.to_s] = [new.show, new.status]
 	    interject :status, new.from, 'is ' + (new.show ? new.show.to_s : 'available') + (new.status ? ': ' + new.status : '')
 	  end
