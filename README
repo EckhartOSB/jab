@@ -58,6 +58,8 @@ to exit jab, or use the 'q' or 'exit' commands.
 
 INSTALLATION
 
+You must first install Ruby and the xmpp4r gem.
+
 Place the file jab.rb in a directory that is included in your Ruby load
 path.  To see what directories are included, use the command:
 
