@@ -11,7 +11,7 @@ class Jab
   SITE = "http://chipstips.com/?tag=rbjab"
 
   # commands for determining terminal capabilities
-  @@termcap = { 'Co' => 'tput Co', 'AB' => 'tput AB %d', 'AF' => 'tput AF %d', 'op' => 'tput op' }
+  @@termcap = { 'Co' => 'tput Co', 'AB' => 'tput AB %d', 'AF' => 'tput AF %d', 'me' => 'tput me' }
   @@use_readline = true			# use readline if a tty
 
   def initialize
@@ -338,8 +338,8 @@ class Jab
   # how is zero or more escape sequences, most likely returned by fg or bg
   def color(what,*how)
     if how.size > 0
-      @@op ||= `#{@@termcap['op']}`
-      @colors << [Regexp.new(what), how.join('') + '\0' + @@op]
+      @@me ||= `#{@@termcap['me']}`
+      @colors << [Regexp.new(what), how.join('') + '\0' + @@me]
     end
   end
 
