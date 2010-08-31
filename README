@@ -1,7 +1,7 @@
 jab -- CLI-based Jabber client of/by/for Ruby
 
 Author:	Chip Camden
-Date:	June, 2010
+Date:	August, 2010
 Site:	http://chipstips.com/?tag=rbjab
 Hg:	http://bitbucket.org/sterlingcamden/jab
 
@@ -147,7 +147,7 @@ generate these sequences using the 'fg', 'bg', or 'get_color' methods.
 The sequences will be prefixed, in order, to the matching portion of the
 string.  If one or more sequences are specified, then the matching
 portion of the string will be followed by the terminal-specific sequence
-for the "op" termcap capability.
+for the "me" termcap capability.
 
 Care should be taken when specifying two or more color filters that may
 apply to the same string.  All color filters will be applied in the order
@@ -477,7 +477,7 @@ variables are provided:
 @@numcolors 	Number of colors supported by this terminal.  This is only set
 	    	on the first call to 'get_color'.
 
-@@op	   	The terminal-specific sequence for the termcap capability "op".
+@@me	   	The terminal-specific sequence for the termcap capability "me".
 	  	This is only set on the first execution of 'color'.
 
 @@termcap	Hash of termcap capability and command used to retrieve it.
