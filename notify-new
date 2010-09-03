@@ -15,9 +15,16 @@
 #
 #   source "notify-new"	# may need to specify path
 #
+# You can optionally override the notification file by the
+# subsequent command:
+#
+#   @notify_file = filename
+
+@notify_file = "~/.jab/new"
+@new_jabs = 0
 
 def write_new
-  File.open File.expand_path("~/.jab/new"), "w" do |f|
+  File.open File.expand_path(@notify_file), "w" do |f|
     f.puts @new_jabs
   end
 end
