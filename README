@@ -518,4 +518,19 @@ variables are provided:
 
 @user	    	Currently connected username.
 
+
+EXTENSIONS
+
+The following extensions to jab are provided.  See the comments at the top of
+each file for usage, but in general all you need to do is source these in your
+.jabrc to obtain their functionality.
+
+notify-new	Updates with the number of unread jabs.
+
+keep-prompt	Keeps the prompt visible on the last line of the terminal.
+		Relies on specific termcap entries.  Also adds the current time
+		to each notification.
+
+Of course you can write your own extensions just as simply as these are implemented.
+
 END
