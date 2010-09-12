@@ -76,6 +76,7 @@ class Jab
       s.gsub! *cla
     end
     print s
+    $stdout.flush
   end
 
   # stylized messages from jab, filtered by @notify
