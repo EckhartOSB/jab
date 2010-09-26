@@ -1,0 +1,136 @@
+# jab extension for using IRC protocol instead of Jabber
+#
+# to enable, add the following at the top of your .jabrc:
+#
+# source "protocol-irc"
+#
+# this will overload the following jab commands:
+#
+# connect	connects to IRC server
+# disconnect
+# jab		sends messages to a channel or user
+# tap		joins a channel
+# shove		leaves a channel
+# settings	provides IRC info as well
+#
+# it also adds the command irc, which can then be followed
+# by and irc command, sent directly to the server.
+#
+# with thanks to http://snippets.dzone.com/posts/show/1785
+
+require "socket"
+
+module ProtocolIRC
+  
+  def send(msg)
+    @client.send "#{msg}\n", 0
+  end
+
+  def ready?
+    (@client || connect)
+  end
+
+  # connect to IRC server
+  def connect_server(user=nil, password=nil)
+    id = user || ask("nick@domain[:port]")
+    if id && (/(\w+)@([^:]+)(?::(\d+))?/ =~ id)
+      @nick = $1
+      @real_name ||= `egrep ^$USER: /etc/passwd | cut -d: -f 5`
+      @domain = $2
+      @port = $3 || 6667
+      pw = password || ask("password [none])", true)
+      if pw
+	say ">connecting..." if @notify[:info]
+	@client = TCPSocket.open(@domain,@port)
+	send "PASS #{pw}" if pw.length > 0
+	send "USER #{@nick} localhost #{@domain} :#{@real_name}"
+	send "NICK #{@nick}"
+	@listener = Thread.new do
+	  while (data = @client.gets) && data.chomp! && (data.length > 0)
+	    case data
+	      when /^PING :(.+)$/
+		send "PONG :#{$1}"
+	      when /^:(.+?)!(.+?)@(.+?)\sPRIVMSG\s.+\s:[\001]PING (.+)[\001]$/i
+		send "NOTICE #{$1} :\001PING #{$4}\001"
+	      when /^:(.+?)!(.+?)@(.+?)\sPRIVMSG\s.+\s:[\001]VERSION[\001]$/i
+		send "NOTICE #{$1} :\001VERSION jab version #{VERSION}"
+	      when /^:(.+?!.+?@.+?)\sPRIVMSG\s(.+?)\s:(.+)$/
+		from = $1
+		to = $2
+		msg = $3
+	        interject :jabs, from, "jabs #{to}: #{filter_event(:jab, msg).to_s}"
+	      else
+		interject :info, nil, data
+	    end
+	  end
+	  @client = nil	# TCP dropped
+	end
+	say "done.\n" if @notify[:info]
+        true
+      else
+        false
+      end
+    else
+      false
+    end
+  end
+
+  # disconnect from IRC server
+  def disconnect_server
+    @listener.kill if @listener
+    @client.close if @client
+    @client = nil
+  end
+
+  # send message(s)
+  def jab(user=nil, message=nil)
+    who = user || ask("channel or user")
+    if who
+      if message
+        send "PRIVMSG #{who} #{message}"
+      else		# unlike other commands, we'll keep jabbing until EOF
+	while msg = ask(who)
+	  if msg.length > 0
+	    if msg[0,1] == '/'
+	      send msg[1..-1]
+	    else
+	      send "PRIVMSG #{who} #{msg}"
+	    end
+	  end
+	end
+	puts ''
+      end
+    end
+    nil
+  end
+
+  # request subscription or status
+  def tap(channel=nil)
+    who = channel || ask("channel")
+    send "JOIN #{who}"
+    nil
+  end
+
+  # request unsubscription
+  def shove(channel=nil)
+    who = channel || ask("channel")
+    send "PART #{who}"
+    nil
+  end
+
+  # report current settings
+  def settings_protocol
+    interject :always, @user, "protocol IRC" +
+      (@domain ? ", domain: #{@domain}, port: #{@port}, nick: #{@nick}" : "")
+    send "INFO"
+  end
+
+  # send a bare IRC command
+  def irc(*args)
+    send args.join(' ')
+    nil
+  end
+
+end
+
+extend ProtocolIRC	# pull those methods in

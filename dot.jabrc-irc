@@ -1,0 +1,16 @@
+# Example .jabrc for use with IRC
+
+source "protocol-irc"
+
+# Set colors
+if `tput Co`.chomp == '256'
+  source "~/.jab/colors"
+else
+  interject :info, nil, "(no colors)"
+end
+
+# Keep prompt visible at bottom of screen
+source "~/.jab/keep-prompt"
+
+# Connect to EFNet
+connect "sterling@irc.efnet.net", ""

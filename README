@@ -7,7 +7,7 @@ Hg:	http://bitbucket.org/sterlingcamden/jab
 
 GENERAL DESCRIPTION
 
-jab provides a minimal, text-only, serial (no cursing) XMPP client
+jab provides a minimal, text-only, serial (no cursing) XMPP or IRC client
 written in Ruby, that uses Ruby as its command language.  jab provides
 methods to handle the common set of chat tasks, but of course you can
 execute any Ruby code within its read-eval loop.
@@ -22,12 +22,13 @@ To set up your environment each time you start jab, you can place
 commands in a file named ~/.jabrc -- if that file exists, it will be
 executed before jab asks you for input.  You can also override the name 
 of this file with the -r command-line option.  Typical commands placed in
-.jabrc include connecting to the XMPP server, defining aliases, selecting
-colors, and user-specific functions.  An example .jabrc file is included
-with this distribution as dot.jabrc, along with two files that it relies
-upon: .jab-aliases (dot.jab-aliases) and .jab-colors (dot.jab-colors).
-You can use these as patterns for creating your own customized jab
-session.
+.jabrc include connecting to the server, defining aliases, selecting
+colors, enabling extensions, and user-specific functions.  An example
+.jabrc file is included with this distribution as dot.jabrc, along with
+two files that it relies upon: .jab-aliases (dot.jab-aliases) and 
+.jab-colors (dot.jab-colors).  A second example can be found in dot.jabrc-irc,
+which shows how to use jab for IRC.  You can use these as patterns for
+creating your own customized jab session.
 
 For the list of common commands, type 'help' at the prompt (:).  Help
 pages its output by piping it to the executable named in the PAGER
@@ -45,13 +46,15 @@ simultaneous conversations, but it does provide visual cues to tell you
 not only who said something but to whom your next line of text will go if
 you don't switch jabs.
 
-Because XMPP operates asynchronously, you will often receive a message or
+Because chat operates asynchronously, you will often receive a message or
 notification while composing a message.  If that confuses you to the
 point of not being able to finish your thought, use Ctrl+U to erase your
 pending input, press Return to get a fresh prompt, and begin again.  An
 empty line is always ignored when entering commands or messages.  If you
 panic and press Ctrl+C, no worries -- the interrupt will be reported to
-you, and you'll get another prompt.
+you, and you'll get another prompt.  Alternatively, see the provided
+extension 'keep-prompt', which scrolls all output above the bottom line
+and keeps the prompt line intact.
 
 When you're all done, you can press EOF (usually Ctrl+D on Unix systems)
 to exit jab, or use the 'q' or 'exit' commands.
@@ -161,10 +164,13 @@ Some examples of color filters can be found in the file dot.jab-colors.
 
 connect(user=nil, password=nil) => Boolean
 
-Connects to an XMPP server.  The user argument should be in the form
-"user@domain/resource".  If nil, the user will be asked to enter it.
-Likewise, if password is not provided, the user will be asked for it,
-using the silent option on 'ask'.
+Connects to a server.  The user argument should be in the form
+"user@domain/resource" for XMPP (Jabber).  When using the 'protocol-irc'
+extension, it should be in the format "nick@domain".  If nil, the user
+will be asked to enter it.  Likewise, if password is not provided, the
+user will be asked for it, using the silent option on 'ask'.  Passing an
+empty string (or pressing Enter at the prompt) will leave the password
+unspecified (common for IRC).
 
 Returns true if the connection was established.  Returns false if the
 user entered EOF at any prompt.  Raises an error if the connection
@@ -250,7 +256,7 @@ press EOF or enter some equivalent of 'exit', the loop continues.  Each
 command is evaluated within the sandboxed binding.  Any errors are
 rescued and reported to the user.
 
-This method cannot proceed without an XMPP connection, so if one is not
+This method cannot proceed without a connection, so if one is not
 established it will ask the user for login credentials and attempt to
 connect.  If a connection is not established, this method also returns
 nil.
@@ -272,15 +278,25 @@ The message will be terminated with a newline.
 
 ---
 
-jab(user=nil, message=nil) => nil
+irc(command) => nil
 
-Sends an XMPP chat message to user.  The user argument should be in the
-form 'user@domain' or 'user@domain/resource'.  The user will be asked for
+When using IRC, sends command directly to the server.
+
+This command has no effect when using XMPP.
+
+---
+
+jab(whom=nil, message=nil) => nil
+
+Sends a chat message to whom.  The whom argument should be in the
+form 'user@domain' or 'user@domain/resource' for XMPP -- for IRC it can
+be either a nickname or a channel.  The user will be asked for
 it if nil.
 
 If the message argument is nil, jab accepts messages in a loop until EOF.
-Each prompt includes the destination user ID, so you can easily tell to
-whom you are chatting.
+Each prompt includes the destination, so you can easily tell to
+whom you are chatting.  When using IRC, a line of text beginning with '/'
+will be taken as an IRC command.
 
 Message send errors are not synchronous, so this method always returns
 nil.  If an error occurs, it will be displayed to the user via
@@ -358,23 +374,32 @@ settings => nil
 
 Prints current settings to $stdout, after applying any color filters.
 
-The following settings are reported:
+The following settings are reported for XMPP:
 
 status :state, 'message'	# current availability status
 hush :type			# any suppressed notifications
 when_tapped :action		# how to handle subscription requests
 
-Each line is prefixed with the current user account.
+The following settings are reported for IRC:
+
+domain, port, nickname
+the result of sending an INFO command to the server
 
 ---
 
-shove(user=nil) => nil
+shove(whom=nil) => nil
 
-Sends an :unsubscribe request to user.  If user is nil, the user will be
+XMPP:
+
+Sends an :unsubscribe request to whom.  If whom is nil, the user will be
 asked for it.
 
 While there is a supported mechanism to receive responses to this
 request, I have yet to see any server provide them.
+
+IRC:
+
+Sends a PART command for channel specified by whom.
 
 ---
 
@@ -407,17 +432,26 @@ nil, the user will be asked.  Use an empty string for no message.
 Returns the new Jabber::Presence resulting from the specified status, or
 nil if the user pressed EOF at any prompt.
 
+This command has no effect when using IRC.  Use "irc away [message]" or
+/away at a jab prompt to set away status.
+
 ---
 
-tap(user=nil) => nil
+tap(whom=nil) => nil
 
-Sends a :subscribe request to user.  If user is nil, the user will be
+XMPP:
+
+Sends a :subscribe request to whom.  If whom is nil, the user will be
 asked for it.
 
 Most XMPP servers respond to this message with a status update if you
 have successfully subscribed now or in the past, so you can use this
 command to check status of an existing friend as well as to subscribe to
 a new one.
+
+IRC:
+
+Sends a JOIN command for the channel specified by whom.
 
 ---
 
@@ -438,6 +472,8 @@ of the following, or its string equivalent:
 
 If action is nil, the user will be asked for one of the above.  If the
 user presses EOF, returns nil, otherwise the symbol.
+
+This command has no effect when using IRC.
 
 ---
 
@@ -495,8 +531,14 @@ variables are provided:
 	    	the match, and String is what to replace it with (using
 	    	String#gsub!)
 
+@domain		When using IRC, the server URL.
+
 @events		Hash of :event => [proc...], hooks to call on certain events.
 		Set by 'on'.
+
+@listener	When using IRC, the thread that receives messages from the server.
+
+@nick		When using IRC, the user's nickname.
 
 @notify	    	Hash of notification settings.  Each element is Symbol =>
 	    	Boolean, where Symbol is one of the notification type symbols,
@@ -504,7 +546,14 @@ variables are provided:
 
 @pager	    	Pager command to use for 'help'.
 
+@port		When using IRC, the port number on the host.
+
 @presence   	Jabber::Presence from last status modification for this user.
+
+@real_name	When using IRC protocol, the user's full name.  Must be set
+		prior to connecting to take effect.  If not set when connecting,
+		the value of $USER will be used to extract the full name from 
+		/etc/passwd.
 
 @requests   	Queue of pending subscription requests.  Each element of the
 	    	Array is a Jabber::Presence from a request.
@@ -525,11 +574,18 @@ The following extensions to jab are provided.  See the comments at the top of
 each file for usage, but in general all you need to do is source these in your
 .jabrc to obtain their functionality.
 
-notify-new	Updates with the number of unread jabs.
+notify-new	Updates a file with the number of unread jabs.
 
 keep-prompt	Keeps the prompt visible on the last line of the terminal.
 		Relies on specific termcap entries.  Also adds the current time
 		to each notification.
+
+protocol-irc	Substitutes the IRC protocol instead of Jabber.  Connects to an IRC
+		server, changes the 'tap' command to joing a channel, and 'jab'
+		to start talking to a channel or user.  When in iterative jab mode,
+		a '/' at the beginning of a line indicates an IRC command.  The
+		extension also adds an explicit 'irc' command.  See the supplied
+		file dot.jabrc-irc for a usage example.
 
 Of course you can write your own extensions just as simply as these are implemented.
 

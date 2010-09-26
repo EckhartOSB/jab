@@ -4,9 +4,185 @@ require "xmpp4r/client"
 require "xmpp4r/roster"
 include Jabber
 
-class Jab
+module Jab
 
-  VERSION = "0.3"
+  # module that implements the Jabber protocol for Jab
+  module ProtocolJabber
+
+    # insure protocol is ready
+    def ready?
+      (@client || connect) && handle_requests
+    end
+
+    # connect to an XMPP server
+    def connect_server(user=nil, password=nil)
+      @requests ||= []
+      @accept ||= :ask			# prompt for subscriptions by default
+      id = user || ask("user@domain/resource")
+      if id
+	pw = password || ask("password", true)
+	if pw
+	  say ">connecting..." if @notify[:info]
+	  jid = JID::new id
+	  @client = Client::new jid
+	  @client.connect
+	  @client.auth pw
+	  @user = user
+
+	  # when we receive a message...
+	  @client.add_message_callback do |m|
+	    case m.type
+	      when :chat || :normal
+		if m.body
+		  interject :jabs, m.from, 'jabs: ' + filter_event(:jab, m.body).to_s
+		end
+	      when :error
+		interject :errors, m.from, 'ducked your jab:' + m.to_s.gsub(/<\/\w+>/,'').gsub(/\/?>/,'').gsub(/</,"\n>").gsub(/xmlns=(['"]).+?\1/,'')
+	    end
+	  end
+	  @roster = Roster::Helper.new @client
+	  # when we're asked to subscribe...
+	  @roster.add_subscription_request_callback do |item,pres|
+	    case @accept
+	      when :ask
+		@requests << pres		# Save it for later, in case we're already processing user input
+	      when :y
+		@roster.accept_subscription pres.from
+		tap pres.from
+		interject :status, pres.from, "can now jab you"
+	      when :n
+		@roster.decline_subscription pres.from
+		interject :status, pres.from, "denied"
+	    end
+	  end
+	  # notification of [un]subscription (haven't seen any of these yet, though)
+	  @roster.add_subscription_callback do |roster,pres|
+	    case pres.type
+	      when :subscribed
+		interject :status, pres.from, "is now jabbable"
+	      when :unsubscribed
+		interject :status, pres.from, "can no longer be jabbed"
+	    end
+	  end
+	  # notification of status change
+	  @roster.add_presence_callback do |roster, old, new|
+	    prev = @statuses[new.from.to_s]
+	    if !prev || (prev[0] != new.show) || (new.status && (prev[1] != new.status))	# Avoid repeating status
+	      @statuses[new.from.to_s] = [new.show, new.status]
+	      interject :status, new.from, 'is ' + (new.show ? new.show.to_s : 'available') + (new.status ? ': ' + new.status : '')
+	    end
+	  end
+	  say "done.\n" if @notify[:info]
+	  true
+	else
+	  false
+	end
+      else
+	false
+      end
+    end
+
+    # disconnect from the server
+    def disconnect_server
+      if @client
+	@client.close
+	@client = nil
+	true
+      else
+        false
+      end
+    end
+
+    # deferred subscription requests, handled between commands
+    def handle_requests
+      while pres = @requests.shift
+	interject :always, pres.from, "wants to be able to jab you.\n>the question is, do you want to be jabbed? "
+	ans = multiask(['y','n'], nil, '')
+	if ans && (ans == 'y')
+	  interject :info, pres.from, "-- come on in!"
+	  @roster.accept_subscription pres.from
+	  tap pres.from
+	else
+	  interject :info, pres.from, "-- rejected!"
+	  @roster.decline_subscription pres.from
+	end
+      end
+      true
+    end
+
+    # send message(s)
+    def jab(user=nil, message=nil)
+      who = user || ask("whom")
+      if who
+	if message
+	  m = Message::new who, message
+	  m.type = :chat
+	  @client.send m
+	else		# unlike other commands, we'll keep jabbing until EOF
+	  while msg = ask(who)
+	    if msg.length > 0
+	      m = Message::new who, msg
+	      m.type = :chat
+	      @client.send m
+	    end
+	  end
+	  puts ''
+	end
+      end
+      nil
+    end
+
+    # request subscription or status
+    def tap(user=nil)
+      who = user || ask("whom")
+      @statuses.each do |name, sts|
+	@statuses[name] = nil if name[0,who.length] == who
+      end
+      @client.send Presence.new.set_type(:subscribe).set_to(who) if who
+    end
+
+    # request unsubscription
+    def shove(user=nil)
+      who = user || ask("whom")
+      @client.send Presence.new.set_type(:unsubscribe).set_to(who) if who
+    end
+
+    # change our status
+    def status(sts=nil, msg=nil)
+      s = sts || multiask(['available','away','chat','dnd','xa'], 'available')
+      if s
+	pres = Presence.new
+	pres.show = (s.to_sym == :available) ? nil : s.to_sym
+	pres.status = msg || ask("message [none]")
+	if pres.status
+	  @client.send pres
+	  @presence = pres		# for later reporting
+	end
+      end
+    end
+
+    # settings for this protocol
+    def settings_protocol
+      interject :always, @user, "protocol Jabber"
+      interject :always, @user, "status :" + (@presence ?
+	(@presence.show ? @presence.show.to_s : 'available') +
+	(@presence.status ? ", '#{@presence.status}'" : '') :
+	"unknown")
+      interject :always, @user, "when_tapped :#{@accept.to_s}"
+    end
+
+    # preference for handling subscription requests
+    def when_tapped(action=nil)
+      a = action || multiask(['ask','n','y'], 'ask')
+      @accept = a.to_sym if a
+    end
+
+  end
+
+# class the encapsulates the Jab client session
+class Session
+
+  VERSION = "0.4"
   AUTHOR = "Chip Camden"
   SITE = "http://chipstips.com/?tag=rbjab"
 
@@ -16,11 +192,9 @@ class Jab
 
   def initialize
     #Jabber::debug = true
-    @requests = []			# pending subscription requests
     @colors = []			# color substitutions to apply
     @notify = {:errors => true, :info => true, :jabs => true, :status => true, :always => true}
     					# all notifications on by default
-    @accept = :ask			# prompt for subscriptions by default
     @sandbox = (Proc.new {}).binding	# safe place for userboy to play
     @pager = ENV['PAGER'] || 'less'	# pager for help
     @statuses = {}			# user => [:status, 'message']
@@ -84,100 +258,6 @@ class Jab
     say filter_event(:interject, ">#{sender || ''} #{msg}\n").to_s if @notify[type]
   end
 
-  # connect to an XMPP server
-  def connect(user=nil, password=nil)
-    id = user || ask("user@domain/resource")
-    if id
-      pw = password || ask("password", true)
-      if pw
-	say ">connecting..." if @notify[:info]
-	$stdout.flush
-	jid = JID::new id
-	@client = Client::new jid
-	@client.connect
-	@client.auth pw
-	@user = user
-
-	# when we receive a message...
-	@client.add_message_callback do |m|
-	  case m.type
-	    when :chat || :normal
-	      if m.body
-		interject :jabs, m.from, 'jabs: ' + filter_event(:jab, m.body).to_s
-	      end
-	    when :error
-	      interject :errors, m.from, 'ducked your jab:' + m.to_s.gsub(/<\/\w+>/,'').gsub(/\/?>/,'').gsub(/</,"\n>").gsub(/xmlns=(['"]).+?\1/,'')
-	  end
-	end
-	@roster = Roster::Helper.new @client
-	# when we're asked to subscribe...
-	@roster.add_subscription_request_callback do |item,pres|
-	  case @accept
-	    when :ask
-	      @requests << pres		# Save it for later, in case we're already processing user input
-	    when :y
-	      @roster.accept_subscription pres.from
-	      tap pres.from
-	      interject :status, pres.from, "can now jab you"
-	    when :n
-	      @roster.decline_subscription pres.from
-	      interject :status, pres.from, "denied"
-	  end
-	end
-	# notification of [un]subscription (haven't seen any of these yet, though)
-	@roster.add_subscription_callback do |roster,pres|
-	  case pres.type
-	    when :subscribed
-	      interject :status, pres.from, "is now jabbable"
-	    when :unsubscribed
-	      interject :status, pres.from, "can no longer be jabbed"
-	  end
-	end
-	# notification of status change
-	@roster.add_presence_callback do |roster, old, new|
-	  prev = @statuses[new.from.to_s]
-	  if !prev || (prev[0] != new.show) || (new.status && (prev[1] != new.status))	# Avoid repeating status
-	    @statuses[new.from.to_s] = [new.show, new.status]
-	    interject :status, new.from, 'is ' + (new.show ? new.show.to_s : 'available') + (new.status ? ': ' + new.status : '')
-	  end
-	end
-	signal_event :connect
-	say "done.\n" if @notify[:info]
-	true
-      else
-	false
-      end
-    else
-      false
-    end
-  end
-
-  # disconnect from the server
-  def disconnect
-    if @client
-      signal_event :disconnect
-      @client.close
-      @client = nil
-    end
-  end
-
-  # deferred subscription requests, handled between commands
-  def handle_requests
-    while pres = @requests.shift
-      interject :always, pres.from, "wants to be able to jab you.\n>the question is, do you want to be jabbed? "
-      ans = multiask(['y','n'], nil, '')
-      if ans && (ans == 'y')
-	interject :info, pres.from, "-- come on in!"
-	@roster.accept_subscription pres.from
-	tap pres.from
-      else
-	interject :info, pres.from, "-- rejected!"
-	@roster.decline_subscription pres.from
-      end
-    end
-    true
-  end
-
   # associate a proc with an event
   def on(event, &block)
     e = event.to_sym
@@ -202,69 +282,6 @@ class Jab
     else
       arg
     end
-  end
-
-  # send message(s)
-  def jab(user=nil, message=nil)
-    who = user || ask("whom")
-    if who
-      if message
-	m = Message::new who, message
-	m.type = :chat
-	@client.send m
-      else		# unlike other commands, we'll keep jabbing until EOF
-	while msg = ask(who)
-	  if msg.length > 0
-	    m = Message::new who, msg
-	    m.type = :chat
-	    @client.send m
-	  end
-	end
-	puts ''
-      end
-    end
-    nil
-  end
-
-  # request subscription or status
-  def tap(user=nil)
-    who = user.to_s || ask("whom")
-    @statuses.each do |name, sts|
-      @statuses[name] = nil if name[0,who.length] == who
-    end
-    @client.send Presence.new.set_type(:subscribe).set_to(who) if who
-  end
-
-  # request unsubscription
-  def shove(user=nil)
-    who = user || ask("whom")
-    @client.send Presence.new.set_type(:unsubscribe).set_to(who) if who
-  end
-
-  # change our status
-  def status(sts=nil, msg=nil)
-    s = sts || multiask(['available','away','chat','dnd','xa'], 'available')
-    if s
-      pres = Presence.new
-      pres.show = (s.to_sym == :available) ? nil : s.to_sym
-      pres.status = msg || ask("message [none]")
-      if pres.status
-	@client.send pres
-	@presence = pres		# for later reporting
-      end
-    end
-  end
-
-  # report current settings
-  def settings
-    interject :always, @user, "status :" + (@presence ?
-      (@presence.show ? @presence.show.to_s : 'available') +
-      (@presence.status ? ", '#{@presence.status}'" : '') :
-      "unknown")
-    @notify.each do |what, onoff|
-      interject :always, @user, "hush :#{what.to_s}" if !onoff
-    end
-    interject :always, @user, "when_tapped :#{@accept.to_s}"
   end
 
   # change our notification preferences
@@ -293,12 +310,6 @@ class Jab
     notify(what, true)
   end
 
-  # preference for handling subscription requests
-  def when_tapped(action=nil)
-    a = action || multiask(['ask','n','y'], 'ask')
-    @accept = a.to_sym if a
-  end
-
   # process commands from a file
   def source(file=nil, ignore_fnf=nil)
     f = file || ask("filename")
@@ -314,6 +325,12 @@ class Jab
 	end
       end
     end
+  end
+
+  # report current settings
+  def settings
+    settings_protocol
+    nil
   end
 
   # internal routine for retrieving a termcap sequence for setting a color
@@ -344,11 +361,30 @@ class Jab
     end
   end
 
+  # connect to a server
+  def connect(user=nil, password=nil)
+    check_protocol
+    signal_event :connect if connect_server(user, password)
+  end
+
+  # disconnect from server
+  def disconnect
+    signal_event :disconnect
+    disconnect_server
+  end
+
+  # make sure we have a protocol installed.  If not, default to Jabber
+  def check_protocol
+    extend ProtocolJabber if !methods.include? "ready?"
+  end
+
+  # show version, author, and site
   def about
     say "jab version #{VERSION}, by #{AUTHOR}\n"
     say "site: #{SITE}\n"
   end
 
+  # show helpful information
   def help
     File.popen(@pager, 'w') do |p|
       p.print <<END
@@ -428,7 +464,8 @@ END
   # your basic read/eval loop, with the additional synchronized
   # handling of asynchronous requests
   def interact
-    while (@client || connect) && handle_requests && (cmd = getcmd)
+    check_protocol
+    while ready? && (cmd = getcmd)
       begin
 	eval cmd, @sandbox
       rescue SystemExit => exc
@@ -439,4 +476,6 @@ END
     end
   end
 
-end	# class Jab
+end	# class Session
+
+end	# module Jab

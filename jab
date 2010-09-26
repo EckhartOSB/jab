@@ -4,7 +4,7 @@ require "optparse"
 require "jab"		# put jab.rb somewhere in your Ruby load path
 			# ruby -e "puts $:"
 
-session = Jab.new
+session = Jab::Session.new
 gotrc = false
 editing = :vi
 
