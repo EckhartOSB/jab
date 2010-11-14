@@ -87,14 +87,14 @@ module ProtocolIRC
     who = user || ask("channel or user")
     if who
       if message
-        send "PRIVMSG #{who} #{message}"
+        send "PRIVMSG #{who} :#{message}"
       else		# unlike other commands, we'll keep jabbing until EOF
 	while msg = ask(who)
 	  if msg.length > 0
 	    if msg[0,1] == '/'
 	      send msg[1..-1]
 	    else
-	      send "PRIVMSG #{who} #{msg}"
+	      send "PRIVMSG #{who} :#{msg}"
 	    end
 	  end
 	end
