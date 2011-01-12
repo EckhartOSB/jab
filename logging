@@ -1,0 +1,33 @@
+# jab module to enable logging of a session to a file
+
+def log_write(text)
+  if @logfile
+    @logfile.puts text
+    @logfile.flush
+  end
+  text
+end
+
+# Append session log to file.
+def log_start(file)
+  @logfile = File.open File.expand_path(file), "a"
+  log_write "Start logging #{Time.now}"
+  [:interject, :prompt, :input].each do |event|
+    on event do |text|
+      log_write text
+    end
+  end
+  [:connect, :disconnect].each do |event|
+    on event do
+      log_write "#{event} #{Time.now}"
+    end
+  end
+end
+
+def log_end
+  if @logfile
+    log_write "Stop logging #{Time.now}"
+    @logfile.close
+    @logfile = nil
+  end
+end
