@@ -34,7 +34,7 @@ module Jab
 	    case m.type
 	      when :chat || :normal
 		if m.body
-		  interject :jabs, m.from, 'jabs: ' + filter_event(:jab, m.body, m.from).to_s
+		  interject :jabs, m.from, 'jabs: ' + filter_event(:jab, m.body).to_s
 		end
 	      when :error
 		interject :errors, m.from, 'ducked your jab:' + m.to_s.gsub(/<\/\w+>/,'').gsub(/\/?>/,'').gsub(/</,"\n>").gsub(/xmlns=(['"]).+?\1/,'')
@@ -136,7 +136,7 @@ module Jab
     def tap(user=nil)
       who = user || ask("whom")
       @statuses.each do |name, sts|
-	@statuses[name] = nil if name[0,who.length] == who
+	@statuses[name] = nil if name[0,who.to_s.length] == who
       end
       @client.send Presence.new.set_type(:subscribe).set_to(who) if who
     end
