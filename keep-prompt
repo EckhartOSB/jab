@@ -1,0 +1,34 @@
+# keep-prompt
+#
+# jab extension to force the prompt to the bottom of the terminal window, and scroll
+# all other output in the lines above it.  This prevents jabs and notifications from
+# overwriting what you're typing.
+#
+# It also adds the current time to the end of all interjections.
+#
+# This extension relies on your terminal having the following termcap capabilities:
+#
+# sc = save cursor
+# rc = restore cursor
+# cs = set scrolling region
+# sf = scroll down one line
+# cm = cursor move
+#
+# to use it, just add the following to your .jabrc
+#
+# source 'keep-prompt'	# may need to add path
+#
+
+# Filter on all notifications
+on :interject do |body|
+  li = `tput li`.to_i		# number of terminal lines
+  $stdout.flush			# so we don't mix jab's output and tput's
+  system "tput sc && tput cs #{li-2} 0 && tput cm 0 #{li-2} && tput sf"
+  "#{Time.now.strftime('%H:%M')}#{body.chomp}#{`tput cs #{li-1} 0 && tput rc`}"
+end
+
+# Filter on prompts
+on :prompt do |prompt|
+  li = `tput li`.to_i
+  `tput cm 0 #{li-1}` + prompt	# move cursor to bottom
+end
