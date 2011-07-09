@@ -169,12 +169,25 @@ module Jab
 	(@presence.status ? ", '#{@presence.status}'" : '') :
 	"unknown")
       interject :always, @user, "when_tapped :#{@accept.to_s}"
+      interject :always, @user, "id_verbosity #{@id_verbosity}"
     end
 
     # preference for handling subscription requests
     def when_tapped(action=nil)
       a = action || multiask(['ask','n','y'], 'ask')
       @accept = a.to_sym if a
+    end
+
+    # optionally shorten identities for display
+    def shorten_id(identity, verbosity)
+      case verbosity
+        when 0:
+	  identity.split('@')[0]
+	when 1:
+	  identity.split('/')[0]
+	else
+	  identity
+      end
     end
 
   end
@@ -199,6 +212,7 @@ class Session
     @pager = ENV['PAGER'] || 'less'	# pager for help
     @statuses = {}			# user => [:status, 'message']
     @events = {}			# :event => [proc...]
+    @id_verbosity = 2			# use long identifiers by default
   end
 
   # if you forget to quote something, maybe we can do it for you.
@@ -255,7 +269,10 @@ class Session
 
   # stylized messages from jab, filtered by @notify
   def interject(type, sender, msg)
-    say filter_event(:interject, ">#{sender || ''} #{msg}\n").to_s if @notify[type]
+    if @notify[type]
+      whom = sender ? filter_event(:identity, shorten_id(sender.to_s, @id_verbosity)) : ''
+      say filter_event(:interject, ">#{whom} #{msg}\n").to_s
+    end
   end
 
   # associate a proc with an event
@@ -308,6 +325,12 @@ class Session
   # turn them back on
   def unhush(what=nil)
     notify(what, true)
+  end
+
+  # set the verbosity of identifiers
+  def id_verbosity(level)
+    @id_verbosity = level || ask("level")
+    nil
   end
 
   # process commands from a file
@@ -398,6 +421,7 @@ color pattern, [sequence...]			prefix pattern with sequence
 connect ["user@domain/resource"], ["password"]	connect to XMPP server
 help						print this list
 hush [type]					suppress certain messages
+id_verbosity [level]				sets length of identifiers
 jab [user], [message]				send a message
 q						exit
 settings					display current settings

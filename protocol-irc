@@ -122,6 +122,7 @@ module ProtocolIRC
   def settings_protocol
     interject :always, @user, "protocol IRC" +
       (@domain ? ", domain: #{@domain}, port: #{@port}, nick: #{@nick}" : "")
+    interject :always, @user, "id_verbosity #{@id_verbosity}"
     send "INFO"
   end
 
@@ -129,6 +130,11 @@ module ProtocolIRC
   def irc(*args)
     send args.join(' ')
     nil
+  end
+
+  # optionally shorten identities for display
+  def shorten_id(identity, verbosity)
+    verbosity == 0 ? identity.split('!')[0] : identity
   end
 
 end

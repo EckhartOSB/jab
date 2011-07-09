@@ -249,6 +249,20 @@ Synonym for notify(what, false).
 
 ---
 
+id_verbosity(level) => nil
+
+Sets the verbosity level for usernames in messages.  The default is 2.
+For the Jabber protocol, the following levels apply:
+
+0 = Just the username portion
+1 = Username@domain
+otherwise = Username@domain/resource
+
+For the IRC protocol, if set to 0, only the username is displayed.
+Otherwise, the entire user ID is displayed.
+
+---
+
 interact => nil
 
 A read/eval loop for interactive jabbing.  As long as the user does not
@@ -492,6 +506,8 @@ Event		When called			Arguments	Returns
 :disconnect	'disconnect' before		none		ignored
 		closing the connection
 
+:identity	'interject' before output	user identity	filtered identity
+
 :input		'ask' after user presses Enter	user input	filtered input
 						(string or nil)
 
@@ -535,6 +551,8 @@ variables are provided:
 
 @events		Hash of :event => [proc...], hooks to call on certain events.
 		Set by 'on'.
+
+@id_verbosity	The verbosity level for user identities.
 
 @listener	When using IRC, the thread that receives messages from the server.
 
