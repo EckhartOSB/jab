@@ -220,6 +220,12 @@ class Session
     args.unshift(sym.to_s).join(' ')
   end
 
+  # since we're overriding method_missing, we should override respond_to? as well
+  # for consistency
+  def respond_to?(symbol, include_private=false)
+    true				# we always aim to please
+  end
+
   # ask the user for input, with a stylized prompt
   # silent turns off echo if stty is available
   # call is the caller to report, in `' - a string
