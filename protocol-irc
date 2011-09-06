@@ -92,7 +92,11 @@ module ProtocolIRC
 	while msg = ask(who)
 	  if msg.length > 0
 	    if msg[0,1] == '/'
-	      send msg[1..-1]
+	      if msg[0,4].downcase == '/me '
+	        send "PRIVMSG #{who} :\x01ACTION #{msg[4..-1]}\x01"
+	      else
+	        send msg[1..-1]
+	      end
 	    else
 	      send "PRIVMSG #{who} :#{msg}"
 	    end

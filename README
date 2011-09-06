@@ -601,8 +601,9 @@ keep-prompt	Keeps the prompt visible on the last line of the terminal.
 protocol-irc	Substitutes the IRC protocol instead of Jabber.  Connects to an IRC
 		server, changes the 'tap' command to joing a channel, and 'jab'
 		to start talking to a channel or user.  When in iterative jab mode,
-		a '/' at the beginning of a line indicates an IRC command.  The
-		extension also adds an explicit 'irc' command.  See the supplied
+		a '/me ' at the beginning of a line will send an ACTION message,
+		otherwise a '/' at the beginning of a line indicates an IRC command.
+		The extension also adds an explicit 'irc' command.  See the supplied
 		file dot.jabrc-irc for a usage example.
 
 Of course you can write your own extensions just as simply as these are implemented.
